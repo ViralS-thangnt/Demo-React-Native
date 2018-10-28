@@ -7,8 +7,12 @@
  */
 
 import React, {Component} from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { Container, Button, Text, Header, Content, ActionSheet } from 'native-base';
+
+import FCM, { NotificationActionType } from "react-native-fcm";
+import { registerKilledListener, registerAppListener } from "./Libs/Firebase/Listeners";
+import firebaseClient from "./Libs/Firebase/FirebaseClient";
 
 // const instructions = Platform.select({
 //   ios: 'Press Cmd+R to reload,\n' + 'Cmd+D or shake for dev menu.',
@@ -16,6 +20,8 @@ import { Container, Button, Text, Header, Content, ActionSheet } from 'native-ba
 //     'Double tap R on your keyboard to reload,\n' +
 //     'Shake or press menu button for dev menuTHANG1111',
 // });
+
+registerKilledListener();
 
 var BUTTONS = [
   { text: "Option 0", icon: "american-football", iconColor: "#2c8ef4" },
@@ -29,13 +35,73 @@ var CANCEL_INDEX = 4;
 
 type Props = {};
 export default class App extends Component<Props> {
+
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            token: "",
+            tokenCopyFeedback: ""
+        };
+    }
+
+    async componentDidMount() {
+        //FCM.createNotificationChannel is mandatory for Android targeting >=8. Otherwise you won't see any notification
+        FCM.createNotificationChannel({
+            id: 'default',
+            name: 'Default',
+            description: 'used for example',
+            priority: 'high'
+        })
+        registerAppListener(this.props.navigation);
+        FCM.getInitialNotification().then(notif => {
+            this.setState({
+                initNotif: notif
+            });
+            if (notif && notif.targetScreen === "detail") {
+                setTimeout(() => {
+                    this.props.navigation.navigate("Detail");
+                }, 500);
+            }
+        });
+
+        try {
+            let result = await FCM.requestPermissions({
+                badge: false,
+                sound: true,
+                alert: true
+            });
+        } catch (e) {
+            console.error(e);
+        }
+
+        FCM.getFCMToken().then(token => {
+            console.log("TOKEN (getFCMToken)", token);
+            this.setState({ token: token || "" });
+        });
+
+        if (Platform.OS === "ios") {
+            FCM.getAPNSToken().then(token => {
+                console.log("APNS TOKEN (getFCMToken)", token);
+            });
+        }
+
+        // topic example
+        // FCM.subscribeToTopic('sometopic')
+        // FCM.unsubscribeFromTopic('sometopic')
+
+    }
+
   render() {
+
+    let { token, tokenCopyFeedback } = this.state;
+
     return (
       <Container>
         <Header />
 
         <Content padder>
-          <Button >
+          <Button>
             <Text style={styles.button}>
               Thang
             </Text>
